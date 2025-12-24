@@ -1,430 +1,142 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react"
+import { ethers } from "ethers"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import {
-  Users,
-  Vote,
-  UserCheck,
-  Activity,
-  Plus,
-  Calendar,
-  Pause,
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle,
-} from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { COBLOSIN_ADDRESS, COBLOSIN_ABI } from "@/lib/contract-config"
 
-type Phase = "Setup" | "Registration Candidate" | "Registration Voter" | "Voting" | "Counting" | "Ended"
+export default function PanitiaView() {
+  const [namaKandidat, setNamaKandidat] = useState("")
+  const [profilHash, setProfilHash] = useState("")
+  const [addressPemilih, setAddressPemilih] = useState("")
+  const [currentPhase, setCurrentPhase] = useState("0")
+  const [candidates, setCandidates] = useState([])
 
-interface PanitiaViewProps {
-  currentPhase: Phase
-  setCurrentPhase: (phase: Phase) => void
-}
+  useEffect(() => {
+    loadAdminData()
+  }, [])
 
-export function PanitiaView({ currentPhase, setCurrentPhase }: PanitiaViewProps) {
-  const [currentSection, setCurrentSection] = useState<1 | 2 | 3>(1)
-  const [candidateName, setCandidateName] = useState("")
-  const [profileHash, setProfileHash] = useState("")
-  const [voterName, setVoterName] = useState("")
-  const [voterWallet, setVoterWallet] = useState("")
-  const [votingStartDate, setVotingStartDate] = useState("")
-  const [votingEndDate, setVotingEndDate] = useState("")
-  const [candidates, setCandidates] = useState([
-    { id: 1, name: "Ahmad Santoso", hash: "QmX4e...8f3a" },
-    { id: 2, name: "Siti Nurhaliza", hash: "QmY5f...9g4b" },
-    { id: 3, name: "Budi Prasetyo", hash: "QmZ6g...0h5c" },
-  ])
-  const [voters, setVoters] = useState([
-    { id: 1, name: "Rina Wijaya", wallet: "0x1234...5678" },
-    { id: 2, name: "Andi Saputra", wallet: "0x2345...6789" },
-    { id: 3, name: "Dewi Lestari", wallet: "0x3456...7890" },
-  ])
+  async function loadAdminData() {
+    if (!window.ethereum) return
+    const provider = new ethers.BrowserProvider(window.ethereum)
+    const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, provider)
+    
+    const phase = await contract.faseSaatIni()
+    setCurrentPhase(phase.toString())
 
-  const stats = {
-    totalCandidates: candidates.length,
-    totalEligibleVoters: voters.length,
-    totalVotesCast:
-      currentPhase === "Voting" ? 823 : currentPhase === "Counting" || currentPhase === "Ended" ? 1189 : 0,
+    const count = await contract.getJumlahKandidat()
+    const items = []
+    for (let i = 0; i < count; i++) {
+      const item = await contract.daftarKandidat(i)
+      items.push(item)
+    }
+    setCandidates(items)
   }
 
-  const handleRegisterCandidate = () => {
-    if (candidateName && profileHash) {
-      setCandidates([
-        ...candidates,
-        {
-          id: candidates.length + 1,
-          name: candidateName,
-          hash: profileHash,
-        },
-      ])
-      setCandidateName("")
-      setProfileHash("")
+  async function handleAddCandidate() {
+    const provider = new ethers.BrowserProvider(window.ethereum)
+    const signer = await provider.getSigner()
+    const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, signer)
+
+    try {
+      // Konversi string profil ke bytes32 hash
+      const hash = ethers.id(profilHash) 
+      const tx = await contract.tambahKandidat(namaKandidat, hash)
+      await tx.wait()
+      alert("Kandidat berhasil ditambahkan!")
+      loadAdminData()
+    } catch (error) {
+      alert("Gagal: Pastikan Anda Panitia dan fase berada di SETUP")
     }
   }
 
-  const handleRegisterVoter = () => {
-    if (voterName && voterWallet) {
-      setVoters([
-        ...voters,
-        {
-          id: voters.length + 1,
-          name: voterName,
-          wallet: voterWallet,
-        },
-      ])
-      setVoterName("")
-      setVoterWallet("")
+  async function handleVerifyVoter() {
+    const provider = new ethers.BrowserProvider(window.ethereum)
+    const signer = await provider.getSigner()
+    const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, signer)
+
+    try {
+      const tx = await contract.verifikasiPemilih(addressPemilih)
+      await tx.wait()
+      alert("Pemilih berhasil diverifikasi!")
+    } catch (error) {
+      alert("Gagal verifikasi")
     }
   }
 
-  const handleNextToVoterRegistration = () => {
-    setCurrentPhase("Registration Voter")
-    setCurrentSection(2)
-  }
+  async function handleUpdatePhase(newPhase: string) {
+    const provider = new ethers.BrowserProvider(window.ethereum)
+    const signer = await provider.getSigner()
+    const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, signer)
 
-  const handleBackToCandidateRegistration = () => {
-    setCurrentPhase("Registration Candidate")
-    setCurrentSection(1)
-  }
-
-  const handleNextToVotingSetup = () => {
-    setCurrentPhase("Voting")
-    setCurrentSection(3)
-  }
-
-  const handleBackToVoterRegistration = () => {
-    setCurrentPhase("Registration Voter")
-    setCurrentSection(2)
-  }
-
-  const handleActivateVoting = () => {
-    setCurrentPhase("Voting")
-    alert("Voting period activated!")
-  }
-
-  const handleEndElection = () => {
-    setCurrentPhase("Ended")
-    alert("Election has been officially ended. Results are now final and public.")
+    try {
+      const tx = await contract.gantiFase(newPhase)
+      await tx.wait()
+      setCurrentPhase(newPhase)
+      alert("Fase pemilihan diperbarui!")
+    } catch (error) {
+      alert("Gagal update fase")
+    }
   }
 
   return (
-    <div className="space-y-6">
-      {/* Status Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{"Current Phase"}</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{currentPhase}</div>
-            <Badge variant={currentPhase === "Voting" ? "default" : "secondary"} className="mt-2">
-              {currentPhase === "Voting" ? "Active" : "Inactive"}
-            </Badge>
-          </CardContent>
-        </Card>
+    <div className="grid gap-6 md:grid-cols-2">
+      <Card>
+        <CardHeader><CardTitle>Kontrol Fase Pemilihan</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Pilih Fase Aktif</Label>
+            <Select onValueChange={handleUpdatePhase} value={currentPhase}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih Fase" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">SETUP (Tambah Kandidat)</SelectItem>
+                <SelectItem value="1">REGISTRASI (Verifikasi Pemilih)</SelectItem>
+                <SelectItem value="2">VOTING (Mulai Mencoblos)</SelectItem>
+                <SelectItem value="3">SELESAI (Lihat Hasil)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{"Total Candidates"}</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCandidates}</div>
-            <p className="text-xs text-muted-foreground">{"Registered candidates"}</p>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader><CardTitle>Verifikasi Pemilih (Whitelist)</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Wallet Address Mahasiswa</Label>
+            <Input 
+              placeholder="0x..." 
+              value={addressPemilih} 
+              onChange={(e) => setAddressPemilih(e.target.value)} 
+            />
+          </div>
+          <Button className="w-full" onClick={handleVerifyVoter}>Verifikasi Mahasiswa</Button>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{"Eligible Voters"}</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalEligibleVoters}</div>
-            <p className="text-xs text-muted-foreground">{"Verified students"}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{"Total Votes Cast"}</CardTitle>
-            <Vote className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalVotesCast}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.totalVotesCast > 0
-                ? `${((stats.totalVotesCast / stats.totalEligibleVoters) * 100).toFixed(1)}% turnout`
-                : "Waiting for votes"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {currentSection === 1 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>{"Register New Candidate"}</CardTitle>
-                <CardDescription>{"Step 1: Add candidates to the election ballot"}</CardDescription>
-              </div>
-              <Badge variant="secondary">{"Section 1 of 3"}</Badge>
+      <Card className="md:col-span-2">
+        <CardHeader><CardTitle>Tambah Kandidat Baru</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Nama Kandidat</Label>
+              <Input value={namaKandidat} onChange={(e) => setNamaKandidat(e.target.value)} />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="candidate-name">{"Candidate Name"}</Label>
-                <Input
-                  id="candidate-name"
-                  placeholder="Enter candidate full name"
-                  value={candidateName}
-                  onChange={(e) => setCandidateName(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="profile-hash">{"Off-chain Profile Hash"}</Label>
-                <Input
-                  id="profile-hash"
-                  placeholder="Qm... (IPFS hash)"
-                  value={profileHash}
-                  onChange={(e) => setProfileHash(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleRegisterCandidate} variant="outline" className="gap-2 flex-1 bg-transparent">
-                  <Plus className="h-4 w-4" />
-                  {"Save Candidate"}
-                </Button>
-                <Button onClick={handleNextToVoterRegistration} disabled={candidates.length === 0} className="gap-2">
-                  {"Next: Register Voters"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="space-y-2">
+              <Label>Visi & Misi (Akan di-hash)</Label>
+              <Input value={profilHash} onChange={(e) => setProfilHash(e.target.value)} />
             </div>
-
-            {/* Candidate List */}
-            <div className="mt-6 space-y-2">
-              <h4 className="text-sm font-medium">{"Registered Candidates (" + candidates.length + ")"}</h4>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {candidates.map((candidate) => (
-                  <div
-                    key={candidate.id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3"
-                  >
-                    <div>
-                      <p className="font-medium">{candidate.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{candidate.hash}</p>
-                    </div>
-                    <Badge variant="outline">
-                      {"ID: "}
-                      {candidate.id}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {currentSection === 2 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>{"Register New Voter"}</CardTitle>
-                <CardDescription>{"Step 2: Add eligible voters to the voting system"}</CardDescription>
-              </div>
-              <Badge variant="secondary">{"Section 2 of 3"}</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="voter-name">{"Voter Name"}</Label>
-                <Input
-                  id="voter-name"
-                  placeholder="Enter voter full name"
-                  value={voterName}
-                  onChange={(e) => setVoterName(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="voter-wallet">{"Wallet Address"}</Label>
-                <Input
-                  id="voter-wallet"
-                  placeholder="0x..."
-                  value={voterWallet}
-                  onChange={(e) => setVoterWallet(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleBackToCandidateRegistration} variant="outline" className="gap-2 bg-transparent">
-                  <ArrowLeft className="h-4 w-4" />
-                  {"Back"}
-                </Button>
-                <Button onClick={handleRegisterVoter} variant="outline" className="gap-2 flex-1 bg-transparent">
-                  <Plus className="h-4 w-4" />
-                  {"Save Voter"}
-                </Button>
-                <Button onClick={handleNextToVotingSetup} disabled={voters.length === 0} className="gap-2">
-                  {"Next: Setup Voting"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Voter List */}
-            <div className="mt-6 space-y-2">
-              <h4 className="text-sm font-medium">{"Registered Voters (" + voters.length + ")"}</h4>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                {voters.map((voter) => (
-                  <div
-                    key={voter.id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{voter.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono truncate">{voter.wallet}</p>
-                    </div>
-                    <Badge variant="outline" className="ml-2 shrink-0">
-                      {"#"}
-                      {voter.id}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {currentSection === 3 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>{"Activate Voting Period"}</CardTitle>
-                <CardDescription>{"Step 3: Set voting schedule and begin the voting phase"}</CardDescription>
-              </div>
-              <Badge variant="secondary">{"Section 3 of 3"}</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="start-date">{"Start Date & Time"}</Label>
-              <Input
-                id="start-date"
-                type="datetime-local"
-                value={votingStartDate}
-                onChange={(e) => setVotingStartDate(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="end-date">{"End Date & Time"}</Label>
-              <Input
-                id="end-date"
-                type="datetime-local"
-                value={votingEndDate}
-                onChange={(e) => setVotingEndDate(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleBackToVoterRegistration} variant="outline" className="gap-2 bg-transparent">
-                <ArrowLeft className="h-4 w-4" />
-                {"Back"}
-              </Button>
-              <Button
-                disabled={!votingStartDate || !votingEndDate}
-                className="flex-1 gap-2"
-                onClick={handleActivateVoting}
-              >
-                <Calendar className="h-4 w-4" />
-                {"Activate Voting Period"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {currentPhase === "Voting" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{"Close Voting & Start Counting"}</CardTitle>
-            <CardDescription>{"End the voting period and begin the counting phase"}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setCurrentPhase("Counting")} variant="destructive" className="w-full gap-2">
-              <Pause className="h-4 w-4" />
-              {"Close Voting & Start Counting"}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {currentPhase === "Counting" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{"Finalize Election Results"}</CardTitle>
-            <CardDescription>{"Officially end the election and publish final results"}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={handleEndElection} className="w-full gap-2">
-              <CheckCircle className="h-4 w-4" />
-              {"End Election & Publish Results"}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {currentPhase === "Ended" && (
-        <Card className="border-secondary">
-          <CardHeader>
-            <CardTitle className="text-secondary">{"Election Completed"}</CardTitle>
-            <CardDescription>{"The election has been successfully completed and results are final"}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="rounded-lg bg-secondary/10 p-4">
-                <div className="flex items-center gap-2 text-secondary">
-                  <CheckCircle className="h-5 w-5" />
-                  <span className="font-semibold">{"All results are now public and immutable on the blockchain"}</span>
-                </div>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{"Total Candidates:"}</span>
-                  <span className="font-medium">{stats.totalCandidates}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{"Total Voters:"}</span>
-                  <span className="font-medium">{stats.totalEligibleVoters}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{"Total Votes Cast:"}</span>
-                  <span className="font-medium">{stats.totalVotesCast}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{"Voter Turnout:"}</span>
-                  <span className="font-medium">
-                    {((stats.totalVotesCast / stats.totalEligibleVoters) * 100).toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          <Button className="w-full" onClick={handleAddCandidate}>Daftarkan Kandidat ke Blockchain</Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }
