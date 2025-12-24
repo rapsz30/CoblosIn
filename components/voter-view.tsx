@@ -121,7 +121,7 @@ export default function VoterView() {
                 </div>
                 <CardTitle className="mt-2">{c.nama}</CardTitle>
                 <CardDescription>Profil Hash: {c.hashProfil.substring(0, 15)}...</CardDescription>
-              </Header>
+              </CardHeader>
               <CardFooter>
                 <Button 
                   className="w-full" 
