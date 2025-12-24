@@ -211,11 +211,11 @@
 	},
 	"sources": {
 		"contracts/CoblosIn.sol": {
-			"keccak256": "0xfd92ecb0e42f63da929db68ca6080f0d86c57756a2d1e547313db73ae5161d63",
+			"keccak256": "0x0091122936ffe559c5d35648a0574971ef043fc059702873965967e9c0578d4e",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://c9deec2890447f4ba598cfa09d1f2cbe75c4355eeed578da6540fbf1147bde99",
-				"dweb:/ipfs/QmcuqzateZZLiUP4WLkKEut6Vo9dnKyRefJ7Hmj7adnQHu"
+				"bzz-raw://21c681eb65e4bfd0eda4aac7683025e0c9b11e03c6e136b5dcc8f79b1f1b9328",
+				"dweb:/ipfs/QmajuTMpkSRoyV8tpyYtxPB74GsGcCgXXsV4p1soVurGdf"
 			]
 		}
 	},
