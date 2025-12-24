@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CheckCircle2, User, Fingerprint, Clock } from "lucide-react"
-import { COBLOSIN_ADDRESS, COBLOSIN_ABI } from "@/lib/contract-config" // Pastikan file ini ada
+import { COBLOSIN_ADDRESS, COBLOSIN_ABI } from "@/lib/contract-config"
 
 interface Candidate {
   id: number
@@ -22,50 +22,52 @@ export default function VoterView() {
   const [hasVoted, setHasVoted] = useState(false)
   const [receipt, setReceipt] = useState("")
   const [loading, setLoading] = useState(true)
-  const [votingStatus, setVotingStatus] = useState(0) // 0: SETUP, 1: REGISTRASI, 2: VOTING
+  const [votingStatus, setVotingStatus] = useState(0)
 
   useEffect(() => {
     loadVoterData()
   }, [])
 
   async function loadVoterData() {
-    if (!window.ethereum) return
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum)
-      const signer = await provider.getSigner()
-      const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, provider)
-      const userAddress = await signer.getAddress()
+    if (typeof window !== "undefined" && window.ethereum) {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const signer = await provider.getSigner()
+        const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, provider)
+        const userAddress = await signer.getAddress()
 
-      // Ambil data pemilih & fase
-      const voterInfo = await contract.dataPemilih(userAddress)
-      const currentPhase = await contract.faseSaatIni()
-      
-      setIsEligible(voterInfo.isTerverifikasi)
-      setHasVoted(voterInfo.sudahMemilih)
-      setReceipt(voterInfo.voteReceipt)
-      setVotingStatus(Number(currentPhase))
+        const voterInfo = await contract.dataPemilih(userAddress)
+        const currentPhase = await contract.faseSaatIni()
+        
+        setIsEligible(voterInfo.isTerverifikasi)
+        setHasVoted(voterInfo.sudahMemilih)
+        setReceipt(voterInfo.voteReceipt)
+        setVotingStatus(Number(currentPhase))
 
-      // Ambil daftar kandidat
-      const count = await contract.getJumlahKandidat()
-      const items = []
-      for (let i = 0; i < count; i++) {
-        const item = await contract.daftarKandidat(i)
-        items.push({
-          id: Number(item.id),
-          nama: item.nama,
-          hashProfil: item.hashProfil,
-          jumlahSuara: Number(item.jumlahSuara)
-        })
+        const count = await contract.getJumlahKandidat()
+        const items: Candidate[] = []
+        for (let i = 0; i < Number(count); i++) {
+          const item = await contract.daftarKandidat(i)
+          items.push({
+            id: Number(item.id),
+            nama: item.nama,
+            hashProfil: item.hashProfil,
+            jumlahSuara: Number(item.jumlahSuara)
+          })
+        }
+        setCandidates(items)
+      } catch (error) {
+        console.error("Gagal memuat data:", error)
+      } finally {
+        setLoading(false)
       }
-      setCandidates(items)
-    } catch (error) {
-      console.error("Gagal memuat data:", error)
-    } finally {
-      setLoading(false)
+    } else {
+        setLoading(false)
     }
   }
 
   async function handleVote(id: number) {
+    if (!window.ethereum) return
     try {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
@@ -74,13 +76,14 @@ export default function VoterView() {
       const tx = await contract.pilihKandidat(id)
       await tx.wait()
       alert("Suara berhasil direkam!")
-      loadVoterData() // Refresh status
+      loadVoterData()
     } catch (error: any) {
       alert("Gagal mencoblos: " + (error.reason || error.message))
     }
   }
 
   if (loading) return <div className="p-8 text-center">Menghubungkan ke Blockchain...</div>
+  if (typeof window !== "undefined" && !window.ethereum) return <div className="p-8 text-center">Silakan install MetaMask.</div>
 
   return (
     <div className="space-y-6">

@@ -7,44 +7,62 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { COBLOSIN_ADDRESS, COBLOSIN_ABI } from "@/lib/contract-config"
+
+// Interface untuk memperbaiki error 'never[]'
+interface Candidate {
+  id: number;
+  nama: string;
+  hashProfil: string;
+  jumlahSuara: number;
+}
 
 export default function PanitiaView() {
   const [namaKandidat, setNamaKandidat] = useState("")
   const [profilHash, setProfilHash] = useState("")
   const [addressPemilih, setAddressPemilih] = useState("")
   const [currentPhase, setCurrentPhase] = useState("0")
-  const [candidates, setCandidates] = useState([])
+  const [candidates, setCandidates] = useState<Candidate[]>([])
 
   useEffect(() => {
     loadAdminData()
   }, [])
 
   async function loadAdminData() {
-    if (!window.ethereum) return
-    const provider = new ethers.BrowserProvider(window.ethereum)
-    const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, provider)
-    
-    const phase = await contract.faseSaatIni()
-    setCurrentPhase(phase.toString())
+    if (typeof window !== "undefined" && window.ethereum) {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, provider)
+        
+        const phase = await contract.faseSaatIni()
+        setCurrentPhase(phase.toString())
 
-    const count = await contract.getJumlahKandidat()
-    const items = []
-    for (let i = 0; i < count; i++) {
-      const item = await contract.daftarKandidat(i)
-      items.push(item)
+        const count = await contract.getJumlahKandidat()
+        const items: Candidate[] = []
+        for (let i = 0; i < Number(count); i++) {
+          const item = await contract.daftarKandidat(i)
+          items.push({
+            id: Number(item.id),
+            nama: item.nama,
+            hashProfil: item.hashProfil,
+            jumlahSuara: Number(item.jumlahSuara)
+          })
+        }
+        setCandidates(items)
+      } catch (error) {
+        console.error("Gagal load data admin:", error)
+      }
     }
-    setCandidates(items)
   }
 
   async function handleAddCandidate() {
+    if (!window.ethereum) return alert("Install MetaMask!")
+    
     const provider = new ethers.BrowserProvider(window.ethereum)
     const signer = await provider.getSigner()
     const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, signer)
 
     try {
-      // Konversi string profil ke bytes32 hash
       const hash = ethers.id(profilHash) 
       const tx = await contract.tambahKandidat(namaKandidat, hash)
       await tx.wait()
@@ -56,6 +74,7 @@ export default function PanitiaView() {
   }
 
   async function handleVerifyVoter() {
+    if (!window.ethereum) return
     const provider = new ethers.BrowserProvider(window.ethereum)
     const signer = await provider.getSigner()
     const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, signer)
@@ -70,6 +89,7 @@ export default function PanitiaView() {
   }
 
   async function handleUpdatePhase(newPhase: string) {
+    if (!window.ethereum) return
     const provider = new ethers.BrowserProvider(window.ethereum)
     const signer = await provider.getSigner()
     const contract = new ethers.Contract(COBLOSIN_ADDRESS, COBLOSIN_ABI, signer)
