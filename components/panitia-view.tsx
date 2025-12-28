@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { COBLOSIN_ADDRESS, COBLOSIN_ABI } from "@/lib/contract-config"
 
-// Interface untuk memperbaiki error 'never[]'
+// Interface untuk data kandidat
 interface Candidate {
   id: number;
   nama: string;
@@ -17,11 +17,16 @@ interface Candidate {
   jumlahSuara: number;
 }
 
-export default function PanitiaView() {
+// Interface untuk Props (Solusi Error Poin 2)
+interface PanitiaViewProps {
+  currentPhase: string;
+  setCurrentPhase: (phase: any) => void;
+}
+
+export default function PanitiaView({ currentPhase, setCurrentPhase }: PanitiaViewProps) {
   const [namaKandidat, setNamaKandidat] = useState("")
   const [profilHash, setProfilHash] = useState("")
   const [addressPemilih, setAddressPemilih] = useState("")
-  const [currentPhase, setCurrentPhase] = useState("0")
   const [candidates, setCandidates] = useState<Candidate[]>([])
 
   useEffect(() => {
@@ -110,16 +115,16 @@ export default function PanitiaView() {
         <CardHeader><CardTitle>Kontrol Fase Pemilihan</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Pilih Fase Aktif</Label>
+            <Label>Pilih Fase Aktif (Sekarang: {currentPhase})</Label>
             <Select onValueChange={handleUpdatePhase} value={currentPhase}>
               <SelectTrigger>
                 <SelectValue placeholder="Pilih Fase" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="0">SETUP (Tambah Kandidat)</SelectItem>
-                <SelectItem value="1">REGISTRASI (Verifikasi Pemilih)</SelectItem>
-                <SelectItem value="2">VOTING (Mulai Mencoblos)</SelectItem>
-                <SelectItem value="3">SELESAI (Lihat Hasil)</SelectItem>
+                <SelectItem value="0">0 - SETUP (Tambah Kandidat)</SelectItem>
+                <SelectItem value="1">1 - REGISTRASI (Verifikasi Pemilih)</SelectItem>
+                <SelectItem value="2">2 - VOTING (Mulai Mencoblos)</SelectItem>
+                <SelectItem value="3">3 - SELESAI (Lihat Hasil)</SelectItem>
               </SelectContent>
             </Select>
           </div>

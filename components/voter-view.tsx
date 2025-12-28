@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { ethers } from "ethers"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -16,17 +16,29 @@ interface Candidate {
   jumlahSuara: number
 }
 
-export default function VoterView() {
+// Interface untuk Props (Solusi Error Poin 2)
+interface VoterViewProps {
+  currentPhase: string;
+  walletAddress: string;
+  hasVoted: boolean;
+  setHasVoted: (voted: boolean) => void;
+}
+
+export default function VoterView({ 
+  currentPhase, 
+  walletAddress, 
+  hasVoted, 
+  setHasVoted 
+}: VoterViewProps) {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [isEligible, setIsEligible] = useState(false)
-  const [hasVoted, setHasVoted] = useState(false)
   const [receipt, setReceipt] = useState("")
   const [loading, setLoading] = useState(true)
   const [votingStatus, setVotingStatus] = useState(0)
 
   useEffect(() => {
     loadVoterData()
-  }, [])
+  }, [walletAddress]) // Reload jika wallet berubah
 
   async function loadVoterData() {
     if (typeof window !== "undefined" && window.ethereum) {
@@ -37,12 +49,12 @@ export default function VoterView() {
         const userAddress = await signer.getAddress()
 
         const voterInfo = await contract.dataPemilih(userAddress)
-        const currentPhase = await contract.faseSaatIni()
+        const phaseOnChain = await contract.faseSaatIni()
         
         setIsEligible(voterInfo.isTerverifikasi)
         setHasVoted(voterInfo.sudahMemilih)
         setReceipt(voterInfo.voteReceipt)
-        setVotingStatus(Number(currentPhase))
+        setVotingStatus(Number(phaseOnChain))
 
         const count = await contract.getJumlahKandidat()
         const items: Candidate[] = []
@@ -76,6 +88,7 @@ export default function VoterView() {
       const tx = await contract.pilihKandidat(id)
       await tx.wait()
       alert("Suara berhasil direkam!")
+      setHasVoted(true) // Update status di parent (page.tsx)
       loadVoterData()
     } catch (error: any) {
       alert("Gagal mencoblos: " + (error.reason || error.message))
@@ -107,6 +120,7 @@ export default function VoterView() {
         )}
       </div>
 
+      {/* Cek apakah fase contract adalah VOTING (index 2) */}
       {votingStatus !== 2 ? (
         <div className="p-12 text-center border-2 border-dashed rounded-xl">
           <Clock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

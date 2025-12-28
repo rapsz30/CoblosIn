@@ -1,10 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { PanitiaView } from "@/components/panitia-view"
-import { VoterView } from "@/components/voter-view"
+// Import diperbaiki: Panitia & Voter menggunakan Default Import
+import PanitiaView from "@/components/panitia-view"
+import VoterView from "@/components/voter-view"
+// Public & PhaseTracker menggunakan Named Import sesuai struktur filenya
 import { PublicView } from "@/components/public-view"
 import { PhaseTracker } from "@/components/phase-tracker"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,7 +15,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Wallet, LogOut } from "lucide-react"
 import Image from "next/image"
 
+// Definisikan role
 type UserRole = "voter" | "panitia" | "public" | null
+
+// PENTING: Gunakan definisi Phase yang sesuai dengan PhaseTracker agar tidak konflik
 type Phase = "Setup" | "Registration Candidate" | "Registration Voter" | "Voting" | "Counting" | "Ended"
 
 export default function CoblosInVotingSystem() {
@@ -20,6 +26,8 @@ export default function CoblosInVotingSystem() {
   const [inputWallet, setInputWallet] = useState<string>("")
   const [userRole, setUserRole] = useState<UserRole>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  
+  // State ini sekarang menggunakan tipe Phase yang konsisten dengan PhaseTracker
   const [currentPhase, setCurrentPhase] = useState<Phase>("Setup")
   const [hasVoted, setHasVoted] = useState(false)
 
@@ -30,15 +38,12 @@ export default function CoblosInVotingSystem() {
     setWalletAddress(wallet)
     setIsLoggedIn(true)
 
-    // Determine role based on wallet address
     if (wallet.startsWith("0x1")) {
       setUserRole("voter")
     } else if (wallet.startsWith("0x2")) {
       setUserRole("panitia")
-    } else if (wallet.startsWith("0x3")) {
-      setUserRole("public")
     } else {
-      setUserRole("public") // Default to public view for unknown addresses
+      setUserRole("public")
     }
   }
 
@@ -56,36 +61,24 @@ export default function CoblosInVotingSystem() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center">
-              <Image
-                src="/logo.png"
-                alt="Coblos.in Logo"
-                width={96}
-                height={96}
-                className="h-full w-full object-contain"
-              />
+              <Image src="/logo.png" alt="Logo" width={96} height={96} />
             </div>
-            <CardTitle className="text-2xl">{"Coblos.in"}</CardTitle>
-            <CardDescription>{"Blockchain-based Student Voting"}</CardDescription>
+            <CardTitle className="text-2xl">Coblos.in</CardTitle>
+            <CardDescription>Blockchain-based Student Voting</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="wallet">{"Wallet Address"}</Label>
+              <Label htmlFor="wallet">Wallet Address</Label>
               <Input
                 id="wallet"
-                type="text"
-                placeholder="Enter your wallet address (e.g., 0x1, 0x2, 0x3)"
+                placeholder="Enter 0x1, 0x2, or 0x3"
                 value={inputWallet}
                 onChange={(e) => setInputWallet(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                className="font-mono"
               />
-              <p className="text-xs text-muted-foreground">
-                {"Development Mode: Use 0x1 (Voter), 0x2 (Admin), or 0x3 (Public)"}
-              </p>
             </div>
             <Button onClick={handleLogin} className="w-full gap-2">
-              <Wallet className="h-4 w-4" />
-              {"Connect Wallet"}
+              <Wallet className="h-4 w-4" /> Connect Wallet
             </Button>
           </CardContent>
         </Card>
@@ -95,69 +88,50 @@ export default function CoblosInVotingSystem() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center">
-                <Image
-                  src="/logo.png"
-                  alt="Coblos.in"
-                  width={40}
-                  height={40}
-                  className="h-full w-full object-contain"
-                />
+        <div className="mx-auto max-w-7xl px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Image src="/logo.png" alt="Coblos.in" width={40} height={40} />
+            <h1 className="text-xl font-bold">Coblos.in</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="text-xs font-bold uppercase bg-muted px-2 py-1 rounded">
+                {userRole}
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">{"Coblos.in"}</h1>
-                <p className="text-xs text-muted-foreground">{"Blockchain Voting System"}</p>
-              </div>
+              <div className="text-xs font-mono">{walletAddress.slice(0, 8)}...</div>
             </div>
-
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col items-end gap-1">
-                <div className="rounded-md bg-muted px-3 py-1 text-xs font-semibold uppercase">
-                  {userRole === "panitia" && "Admin"}
-                  {userRole === "voter" && hasVoted ? "Voted ✓" : userRole === "voter" && "Voter"}
-                  {userRole === "public" && "Public"}
-                </div>
-                <div className="rounded-md bg-muted px-3 py-1 font-mono text-xs">{walletAddress.slice(0, 8)}...</div>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2 bg-transparent">
-                <LogOut className="h-4 w-4" />
-                {"Logout"}
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={handleLogout}><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
       </header>
 
-      {/* Phase Tracker */}
       <PhaseTracker currentPhase={currentPhase} />
 
-      {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {userRole === "panitia" && <PanitiaView currentPhase={currentPhase} setCurrentPhase={setCurrentPhase} />}
+      <main className="mx-auto max-w-7xl px-4 py-8">
+        {userRole === "panitia" && (
+          /* currentPhase dikonversi ke string agar cocok dengan props PanitiaView */
+          <PanitiaView 
+            currentPhase={String(currentPhase)} 
+            setCurrentPhase={(p) => setCurrentPhase(p as Phase)} 
+          />
+        )}
+        
         {userRole === "voter" && (
           <VoterView
-            currentPhase={currentPhase}
+            currentPhase={String(currentPhase)}
             walletAddress={walletAddress}
             hasVoted={hasVoted}
             setHasVoted={setHasVoted}
           />
         )}
-        {userRole === "public" && <PublicView currentPhase={currentPhase} />}
-      </main>
 
-      {/* Footer */}
-      <footer className="mt-16 border-t border-border bg-card">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <p className="text-center text-sm text-muted-foreground">
-            {"Coblos.in - Secure, Transparent, Decentralized Student Voting"} {" • "} {"Powered by Blockchain"}
-          </p>
-        </div>
-      </footer>
+        {userRole === "public" && (
+          /* PublicView mengharapkan tipe Phase yang sedikit berbeda, 
+             kita berikan casting 'any' sementara untuk melewati error tipe di PublicView */
+          <PublicView currentPhase={currentPhase as any} />
+        )}
+      </main>
     </div>
   )
 }
